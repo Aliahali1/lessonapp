@@ -84,14 +84,12 @@ function tabDone(id){
 }
 function progressPct(){ return Math.round(D.tabs.filter(t=>tabDone(t.id)).length / D.tabs.length * 100); }
 function updateProgress(){
-  const n = D.tabs.filter(t=>tabDone(t.id)).length;
-  $('#pgText').textContent = n + ' من ' + D.tabs.length + ' مكتملة';
-  $('#prog').style.width = (n/D.tabs.length*100) + '%';
-  document.querySelectorAll('.tab[data-id]').forEach(b=>{ b.classList.toggle('done', tabDone(b.dataset.id)); });
+  const pct = progressPct();
+  document.querySelectorAll('[data-pg-text]').forEach(el=>{ el.textContent = 'تقدّمك ' + pct + '٪'; });
+  document.querySelectorAll('[data-pg-bar]').forEach(el=>{ el.style.width = pct + '%'; });
+  document.querySelectorAll('.tile[data-id]').forEach(b=>{ b.classList.toggle('done', tabDone(b.dataset.id)); });
 }
-function renderTabs(){
-  $('#tabsbar').innerHTML = D.tabs.map(t=>`<button class="tab ${t.id===S.cur?'on':''} ${t.featured?'feat':''} ${tabDone(t.id)?'done':''}" type="button" data-act="goto" data-id="${t.id}" role="tab" aria-selected="${t.id===S.cur}">${t.ico} ${t.label}</button>`).join('');
-}
+function renderTabs(){ /* لا يوجد شريط تبويبات: التنقل عبر مربعات الواجهة الرئيسة */ }
 
 /* ---------- لمى ---------- */
 const IMG = {welcome:'assets/luma/luma-welcome.png', thinking:'assets/luma/luma-thinking.png', clue:'assets/luma/luma-clue-detection.png',
@@ -171,30 +169,28 @@ const head = (n, t, lead) => `<span class="chip">${n}</span><h2>${t}</h2>${lead?
 const V = {};
 
 V.home = () => `<div class="home">
-  <header class="home-head">
-    <div class="home-titles">
+  <section class="shop-hero" aria-label="الترحيب">
+    <div class="sh-luma">${lumaImg('welcome')}</div>
+    <div class="sh-txt">
+      <span class="sh-kicker">${esc(C.subject)} · ${esc(C.grade)}</span>
       <h1>${esc(C.lessonTitle)}</h1>
-      <div class="home-sub">${esc(C.siteTitle)}</div>
+      <div class="sh-sub">${esc(C.siteTitle)}</div>
+      <div class="sh-bubble"><b>لمى:</b> «مرحبًا بكِ في مغامرتنا! هيا نكتشف كيف نتسوق بأمان ونميز المتاجر الموثوقة».</div>
     </div>
-    <ul class="home-meta" aria-label="بيانات الدرس">
-      <li><span>المادة</span><b>${esc(C.subject)}</b></li>
-      <li><span>الصف</span><b>${esc(C.grade)}</b></li>
+    <ul class="sh-meta" aria-label="بيانات الدرس">
       <li><span>المعلمة</span><b>${esc(C.teacher)}</b></li>
       <li><span>مديرة المدرسة</span><b>${esc(C.principal)}</b></li>
+      <li class="sh-go"><button class="btn gold sm" type="button" data-act="start">ابدئي المغامرة ✨</button></li>
     </ul>
-  </header>
-  <nav class="tiles" aria-label="محاور الدرس">
+  </section>
+  <div class="shop-title"><h2>تجوّلي في محطات المغامرة</h2><span class="sh-pg"><span data-pg-text></span><i class="bar"><b data-pg-bar></b></i></span></div>
+  <nav class="tiles" aria-label="محطات المغامرة">
     ${D.tabs.filter(t=>t.id!=='home').map(t=>`<button type="button" class="tile ${t.featured?'feat':''} ${tabDone(t.id)?'done':''}" data-act="goto" data-id="${t.id}">
       <span class="tile-ico" aria-hidden="true">${t.ico}</span>
       <span class="tile-title">${esc(t.label)}</span>
       <span class="tile-desc">${esc(t.desc||'')}</span>
-      <span class="tile-open"><span>${tabDone(t.id)?'تمّ ✓':'افتحي'}</span> <i aria-hidden="true">←</i></span>
+      <span class="tile-open"><span>افتحي المحطة</span> <i aria-hidden="true">←</i></span>
     </button>`).join('')}
-    <div class="tile-luma">
-      <div class="tl-img">${lumaImg('welcome')}</div>
-      <div class="tl-txt"><b>مرحبًا بكِ أيتها المحققة الرقمية!</b><span>اختاري أي محور للبدء، أو ابدئي من الأهداف.</span>
-        <button class="btn gold sm" type="button" data-act="start">ابدئي المغامرة ✨</button></div>
-    </div>
   </nav>
   <div class="home-foot"><a href="#/teacher">🔐 دخول المعلمة</a></div>
 </div>`;
@@ -440,8 +436,12 @@ function go(id, sub){
   if(!sub || id!=='life') window.scrollTo({top:0,behavior:'smooth'});
   if(id==='exit') startPoll();
 }
+function backbar(){
+  const t = D.tabs.find(x=>x.id===S.cur); if(!t) return '';
+  return `<div class="backbar no-print"><button class="back" type="button" data-act="goto" data-id="home">→ الرئيسية</button><span class="crumb">${t.ico} ${esc(t.label)}</span><span class="mini-pg"><span data-pg-text></span><i class="bar"><b data-pg-bar></b></i></span></div>`;
+}
 function render(){
-  $('#stage').innerHTML = V[S.cur]();
+  $('#stage').innerHTML = (S.cur==='home' ? '' : backbar()) + V[S.cur]();
   document.body.classList.toggle('is-home', S.cur==='home');
   renderTabs(); updateProgress();
   afterRender();
@@ -554,7 +554,7 @@ window.addEventListener('hashchange', route);
 function openTeacher(){
   stopPoll(); S.cur = 'teacher';
   $('#layout').classList.add('teacher-mode');
-  renderTabs(); document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.body.classList.remove('is-home');
   Teacher.render($('#stage'), {getRecords, setRecords, C, D, esc, back:()=>{ location.hash='#/home'; }});
   window.scrollTo({top:0});
 }
