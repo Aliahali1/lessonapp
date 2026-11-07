@@ -11,12 +11,12 @@ function newStore(){ return {ans:{}, tries:{}, first:{}, wrong:{}, dec:'', why:'
 function fresh(){
   return {v:2, group:'', started:false, cur:'home', seen:{}, mcq:{}, videoEnded:false, vAns:{}, vOral:{},
     clues:[], plain:[], lifeOpen:[], lifeSel:null,
-    sim:{step:0, A:newStore(), B:newStore()},
+    sim:{step:0, A:newStore(), B:newStore(), issued:false, exited:false},
     exit:{points:null, correct:null, done:false, auto:false}, evalOpened:false, lumaHidden:false};
 }
 let S = load();
 function load(){
-  try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d && d.v===2 && d.sim && d.exit) return d; }catch(e){}
+  try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d && d.v===2 && d.sim && d.exit){ if(d.sim.issued===undefined) d.sim.issued = (d.sim.step===5 && d.sim.A.final && d.sim.B.final); if(d.sim.exited===undefined) d.sim.exited=false; return d; } }catch(e){}
   return fresh();
 }
 function save(){
@@ -45,7 +45,7 @@ function buildRecord(){
     videoAnswers: D.videoQs.map((q,i)=>({q, a:S.vAns[i]||'', oral:!!S.vOral[i]})),
     quizFirst: quizFirst(), quizSolved: D.quiz.filter(q=>S.mcq[q.id]&&S.mcq[q.id].solved).length,
     httpsSolved: !!(S.mcq.https&&S.mcq.https.solved), clues: S.clues.length, life: S.lifeOpen.length,
-    exit: S.exit, evalOpened: S.evalOpened, stores:{}};
+    exit: S.exit, evalOpened: S.evalOpened, certificatesIssued: !!S.sim.issued, exited: !!S.sim.exited, stores:{}};
   ['A','B'].forEach(sid=>{
     const st=S.sim[sid], c=counts(sid);
     rec.stores[sid] = {name:D.stores[sid].name, answered:c.answered, firstCorrect:D.checks.filter(k=>st.first[k.id]).length,
@@ -62,7 +62,7 @@ let pushT = null;
 function pushRecord(){
   if(!C.SHEET_ENDPOINT || !S.group) return;
   clearTimeout(pushT);
-  pushT = setTimeout(()=>{ try{ fetch(C.SHEET_ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(buildRecord())}); }catch(e){} }, 600);
+  pushT = setTimeout(()=>{ try{ fetch(C.SHEET_ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(buildRecord())}).catch(()=>{}); }catch(e){} }, 600);
 }
 
 /* ---------- الإنجاز والتقدم ---------- */
@@ -76,7 +76,7 @@ function tabDone(id){
     case 'secure': return !!(S.mcq.https&&S.mcq.https.solved);
     case 'fraud': return S.clues.length>=5;
     case 'life': return S.lifeOpen.length>=3;
-    case 'sim': return S.sim.A.final && S.sim.B.final;
+    case 'sim': return !!(S.sim.A.final && S.sim.B.final && S.sim.issued);
     case 'exit': return !!S.exit.done;
     case 'eval': return !!S.evalOpened;
   }
@@ -107,6 +107,7 @@ function setLumaHidden(h){
   $('#lumaShow').classList.toggle('visible', h);
 }
 const ENTER = {
+  bye:{i:'goodbye', t:'إلى اللقاء أيتها المحققة! نلتقي في مغامرة جديدة.'},
   home:{i:'welcome', t:'مرحبًا بكِ أيتها المحققة الرقمية! تنتظركِ اليوم مغامرة لاكتشاف المتاجر الموثوقة وكشف علامات الاحتيال.'},
   goals:{i:'thinking', t:'هذه أهدافنا اليوم. اقرئيها جيدًا، ففي نهاية المغامرة سنعود إليها.'},
   review:{i:'thinking', t:'قبل أن نبدأ، لننعش ذاكرة المحققة بثلاثة أسئلة سريعة.'},
@@ -193,6 +194,15 @@ V.home = () => `<div class="home">
     </button>`).join('')}
   </nav>
   <div class="home-foot"><a href="#/teacher">🔐 دخول المعلمة</a></div>
+</div>`;
+
+V.bye = () => `<div class="bye">
+  <div class="bye-ico" aria-hidden="true">🌟</div>
+  <h2>انتهت المغامرة بنجاح</h2>
+  <p class="lead">شكرًا لكِ يا ${S.group?('مجموعة «'+esc(S.group)+'»'):'محققة'}! نتائجكِ وبطاقتا «قرار المحققة الرقمية» محفوظتان على هذا الجهاز.</p>
+  <div class="grid2" style="margin:14px 0">${['A','B'].map(sid=>`<div class="card white"><b>${esc(D.stores[sid].name)}</b><br>قراركِ: <b>${decText(S.sim[sid].dec)}</b></div>`).join('')}</div>
+  <div class="navrow no-print"><button class="btn ghost" type="button" data-act="goto" data-id="sim">🔎 مراجعة البطاقتين</button>
+  <button class="btn purple" type="button" data-act="goto" data-id="home">↩ العودة إلى صفحة البداية</button></div>
 </div>`;
 
 V.goals = () => head('أهداف الدرس','🎯 أهداف الدرس','في نهاية هذا الدرس:') +
@@ -351,7 +361,11 @@ function finalStep(){
   };
   return `<div class="no-print" style="text-align:center"><div style="height:220px;display:flex;justify-content:center">${lumaImg('achieve').replace('<img','<img style="max-height:100%;object-fit:contain"')}</div></div>
    <h3 style="text-align:center">أحسنتِ أيتها المحققة! أنهيتِ مهمة المتجرين 🎉</h3>${cardOf('A')}${cardOf('B')}
-   <div class="navrow no-print"><button class="btn ghost" type="button" data-act="print">🖨️ طباعة البطاقتين</button><button class="btn gold" type="button" data-act="goto" data-id="exit">إلى مهمة الخروج الكبرى ←</button></div>`;
+   <div class="navrow no-print"><button class="btn ghost" type="button" data-act="print">🖨️ طباعة البطاقتين</button><button class="btn gold" type="button" data-act="goto" data-id="exit">إلى مهمة الخروج الكبرى ←</button></div>
+   <div class="exitrow no-print">${S.sim.issued
+     ? `<button class="btn purple exitbtn" type="button" data-act="exitask"><span aria-hidden="true">🚪</span> إنهاء المغامرة والخروج</button>`
+     : `<button class="btn purple exitbtn" type="button" disabled aria-disabled="true"><span aria-hidden="true">🚪</span> إنهاء المغامرة والخروج</button><p class="note">يتفعّل الزر بعد إتمام تقييم المتجرين وإصدار البطاقتين.</p>`}
+     <p class="exit-hint">تبقى نتائجكِ وبطاقتاكِ محفوظتين عند الخروج.</p></div>`;
 }
 V.sim = () => {
   const step = S.sim.step;
@@ -493,7 +507,7 @@ document.addEventListener('click', e=>{
     const n = +t.dataset.n;
     if(n>=1 && S.group.trim().length<2){ return; }
     S.sim.step = n; save();
-    if(n===5){ burst(40); luma('achieve','أحسنتِ أيتها المحققة! لقد جمعتِ الأدلة، وحللتِ المؤشرات، واتخذتِ قرارًا واعيًا.'); pushRecord(); }
+    if(n===5){ if(S.sim.A.final && S.sim.B.final){ S.sim.issued = true; save(); } burst(40); luma('achieve','أحسنتِ أيتها المحققة! لقد جمعتِ الأدلة، وحللتِ المؤشرات، واتخذتِ قرارًا واعيًا.'); pushRecord(); }
     else if(n===1||n===2) luma('clue', n===1 ? 'ابدئي بفحص واجهة المتجر. هل وجدتِ معلومات واضحة عن البائع؟' : 'متجر جديد وأدلة جديدة! تحققي من وسائل الدفع وسياسة الخصوصية.');
     else if(n===3) luma('thinking','سجلي ملاحظاتك، ولا تعتمدي على الانطباع وحده. قارني المتجرين.');
     else if(n===4) luma('thinking','ما الدليل الأقوى الذي استندتِ إليه في قرارك؟');
@@ -522,6 +536,10 @@ document.addEventListener('click', e=>{
     }
     save(); render(); if(S.sim.A.final && S.sim.B.final) pushRecord(); return;
   }
+  if(a==='exitask'){ if(S.sim.issued) showExitDlg(); return; }
+  if(a==='exitclose'){ closeExitDlg(); return; }
+  if(a==='exithome'){ closeExitDlg(); return go('home'); }
+  if(a==='exitend'){ closeExitDlg(); S.sim.exited = true; save(); pushRecord(); burst(24); return go('bye'); }
   if(a==='newgroup'){ if(confirm('سيتم بدء مجموعة جديدة ومسح تقدم هذا الجهاز الحالي (نتائج المجموعة السابقة تبقى محفوظة في لوحة المعلمة). هل تريدين المتابعة؟')){ const lh = S.lumaHidden; S = fresh(); S.started = true; S.lumaHidden = lh; save(); go('sim'); } return; }
   if(a==='print'){ window.print(); return; }
   if(a==='savepoints'){
@@ -558,6 +576,24 @@ function openTeacher(){
   Teacher.render($('#stage'), {getRecords, setRecords, C, D, esc, back:()=>{ location.hash='#/home'; }});
   window.scrollTo({top:0});
 }
+
+function showExitDlg(){
+  closeExitDlg();
+  const d = document.createElement('div'); d.className='exitdlg'; d.id='exitDlg';
+  d.innerHTML = `<div class="exitdlg-box" role="dialog" aria-modal="true" aria-labelledby="exT">
+    <div class="exitdlg-luma">${lumaImg('achieve')}</div>
+    <h3 id="exT">لمى المحققة</h3>
+    <p>أحسنتِ أيتها المحققة! أتممتِ مهمتك بنجاح، وأصبحتِ أكثر وعيًا بالتسوق الآمن عبر الإنترنت. نلتقي في مغامرة جديدة!</p>
+    <div class="exitdlg-btns">
+      <button class="btn ghost" type="button" data-act="exithome">🏠 العودة إلى الصفحة الرئيسة</button>
+      <button class="btn purple" type="button" data-act="exitend" id="exFirst">🚪 إنهاء التجربة</button>
+    </div>
+    <button class="exitdlg-x" type="button" data-act="exitclose" aria-label="إغلاق">×</button></div>`;
+  document.body.appendChild(d);
+  const f = d.querySelector('#exFirst'); if(f) f.focus();
+  d.addEventListener('keydown', e=>{ if(e.key==='Escape') closeExitDlg(); });
+}
+function closeExitDlg(){ const d=$('#exitDlg'); if(d) d.remove(); }
 
 function start(){
   $('#lumaHide').addEventListener('click', ()=>setLumaHidden(true));
