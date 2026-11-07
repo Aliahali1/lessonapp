@@ -193,7 +193,7 @@ V.home = () => `<div class="home">
       <span class="tile-open"><span>افتحي المحطة</span> <i aria-hidden="true">←</i></span>
     </button>`).join('')}
   </nav>
-  <div class="home-foot"><a href="#/teacher">🔐 دخول المعلمة</a></div>
+  <div class="home-foot"><button class="btn purple sm homeexit" type="button" data-act="togate"><span aria-hidden="true">🚪</span> الخروج</button><a href="#/teacher">🔐 دخول المعلمة</a></div>
 </div>`;
 
 V.bye = () => `<div class="bye">
@@ -202,7 +202,7 @@ V.bye = () => `<div class="bye">
   <p class="lead">شكرًا لكِ يا ${S.group?('مجموعة «'+esc(S.group)+'»'):'محققة'}! نتائجكِ وبطاقتا «قرار المحققة الرقمية» محفوظتان على هذا الجهاز.</p>
   <div class="grid2" style="margin:14px 0">${['A','B'].map(sid=>`<div class="card white"><b>${esc(D.stores[sid].name)}</b><br>قراركِ: <b>${decText(S.sim[sid].dec)}</b></div>`).join('')}</div>
   <div class="navrow no-print"><button class="btn ghost" type="button" data-act="goto" data-id="sim">🔎 مراجعة البطاقتين</button>
-  <button class="btn purple" type="button" data-act="goto" data-id="home">↩ العودة إلى صفحة البداية</button></div>
+  <button class="btn purple" type="button" data-act="togate">↩ العودة إلى صفحة البداية</button></div>
 </div>`;
 
 V.goals = () => head('أهداف الدرس','🎯 أهداف الدرس','في نهاية هذا الدرس:') +
@@ -471,8 +471,47 @@ function afterRender(){
   }
   if(S.cur==='life' && S.lifeSel){ const p=$('#lifePanel'); if(p) setTimeout(()=>p.scrollIntoView({behavior:'smooth',block:'start'}),50); }
 }
+const GATE_KEY = 'dd2_in';
+function entered(){ try{ return sessionStorage.getItem(GATE_KEY)==='1'; }catch(e){ return true; } }
+function showGate(msg){
+  stopPoll(); closeExitDlg();
+  document.body.classList.add('gated');
+  let g = $('#gate'); if(!g){ g = document.createElement('div'); g.id='gate'; document.body.appendChild(g); }
+  const prev = S.group ? `<p class="gate-prev">آخر مجموعة على هذا الجهاز: <b>${esc(S.group)}</b>. اكتبي الاسم نفسه لمتابعة تقدّمكم، أو اسمًا جديدًا لبدء تجربة جديدة.</p>` : '';
+  g.innerHTML = `<div class="gate-card" role="dialog" aria-modal="true" aria-labelledby="gT">
+    <div class="gate-luma">${lumaImg('welcome')}</div>
+    <div class="gate-body">
+      <span class="gate-chip">${esc(C.subject)} · ${esc(C.grade)}</span>
+      <h1 id="gT">أهلًا بكِ في الدرس التطبيقي</h1>
+      <div class="gate-lesson"><span>اسم الدرس</span><b>${esc(C.lessonTitle)}</b></div>
+      <p class="gate-ask">يشرفنا التعرّف باسمكِ أو اسم مجموعتكِ</p>
+      <div class="field"><label for="gateName" class="sr">اسمك أو اسم مجموعتك</label>
+        <input id="gateName" maxlength="30" autocomplete="off" value="${esc(S.group)}" placeholder="مثال: مجموعة المحققات الذكيات"></div>
+      <p class="note">اكتبي اسمًا للمجموعة أو الاسم الأول فقط، ولا تكتبي بيانات شخصية أخرى.</p>
+      ${prev}
+      <div id="gateMsg" class="fb no" ${msg?'':'hidden'}>${esc(msg||'')}</div>
+      <button class="btn purple gate-go" id="gateGo" type="button">ادخلي إلى المغامرة ✨</button>
+      <div class="gate-foot"><a href="#/teacher" id="gateT">🔐 دخول المعلمة</a></div>
+    </div></div>`;
+  const inp = g.querySelector('#gateName'); setTimeout(()=>inp.focus(),50);
+  const go1 = ()=>{
+    const name = inp.value.trim();
+    if(name.length<2) return showGate('اكتبي اسمًا لا يقل عن حرفين.');
+    if(name!==S.group){ const lh=S.lumaHidden; S = fresh(); S.lumaHidden=lh; S.group=name; }
+    S.started = true; save();
+    try{ sessionStorage.setItem(GATE_KEY,'1'); }catch(e){}
+    hideGate(); luma('welcome','أهلًا '+name+'! هيا نبدأ المغامرة.'); go('home'); pushRecord();
+  };
+  g.querySelector('#gateGo').onclick = go1;
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') go1(); });
+  g.querySelector('#gateT').addEventListener('click', ()=>{ hideGate(); });
+}
+function hideGate(){ const g=$('#gate'); if(g) g.remove(); document.body.classList.remove('gated'); }
+function leave(){ try{ sessionStorage.removeItem(GATE_KEY); sessionStorage.removeItem('dd2_unlocked'); }catch(e){} history.replaceState(null,'',location.pathname+location.search); showGate(); }
 function route(){
   const m = (location.hash||'').replace(/^#\/?/,'').split('/');
+  if(m[0]!=='teacher' && !entered()) return showGate();
+  hideGate();
   const id = m[0] || S.cur || 'home';
   go(id, m[1]);
 }
@@ -536,6 +575,7 @@ document.addEventListener('click', e=>{
     }
     save(); render(); if(S.sim.A.final && S.sim.B.final) pushRecord(); return;
   }
+  if(a==='togate'){ return leave(); }
   if(a==='exitask'){ if(S.sim.issued) showExitDlg(); return; }
   if(a==='exitclose'){ closeExitDlg(); return; }
   if(a==='exithome'){ closeExitDlg(); return go('home'); }
@@ -573,7 +613,7 @@ function openTeacher(){
   stopPoll(); S.cur = 'teacher';
   $('#layout').classList.add('teacher-mode');
   document.body.classList.remove('is-home');
-  Teacher.render($('#stage'), {getRecords, setRecords, C, D, esc, back:()=>{ location.hash='#/home'; }});
+  Teacher.render($('#stage'), {getRecords, setRecords, C, D, esc, back:()=>{ location.hash='#/home'; route(); }, exit:()=>leave()});
   window.scrollTo({top:0});
 }
 

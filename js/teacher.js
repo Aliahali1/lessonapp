@@ -36,11 +36,12 @@ function viewSetPin(msg){
 function viewLogin(msg){
   shell(`<h2>👩‍🏫 لوحة المعلمة</h2><div class="card white" style="max-width:420px"><div class="field"><label for="pin">رمز الدخول</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></div>
    <div id="pmsg" class="fb no" ${msg?'':'hidden'}>${msg||''}</div>
-   <button class="btn gold" id="plogin" type="button">دخول</button> <button class="btn ghost" id="pback" type="button">العودة للدرس</button></div>`);
+   <button class="btn gold" id="plogin" type="button">دخول</button> <button class="btn ghost" id="pback" type="button">العودة للدرس</button> <button class="btn purple" id="pexit" type="button">🚪 الخروج</button></div>`);
   const go = ()=>{ if(hash(root.querySelector('#pin').value)===pinSet()){ try{ sessionStorage.setItem(TOK,'1'); }catch(e){} viewDash(); } else viewLogin('الرمز غير صحيح.'); };
   root.querySelector('#plogin').onclick = go;
   root.querySelector('#pin').addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
   root.querySelector('#pback').onclick = ()=>ctx.back();
+  root.querySelector('#pexit').onclick = ()=>ctx.exit();
 }
 
 /* ---------- حسابات ---------- */
@@ -76,6 +77,7 @@ function viewDash(){
     ${C.SHEET_ENDPOINT?'<button class="btn ghost sm" id="tSync" type="button">☁ جلب من Google Sheets</button>':''}
     <button class="btn ghost sm" id="tPin" type="button">🔑 تغيير الرمز</button>
     <button class="btn ghost sm" id="tLock" type="button">🔒 قفل</button>
+    <button class="btn purple sm" id="tExit" type="button">🚪 الخروج</button>
     <button class="btn ghost sm" id="tClear" type="button" style="color:var(--bad)">🗑 مسح بيانات الجهاز</button></div>
   <div id="tmsg" class="fb ok" hidden></div>
   <details class="card" style="margin:10px 0"><summary><b>ℹ حدود التكامل (مهم)</b></summary>
@@ -107,6 +109,7 @@ function viewDash(){
   const $ = s => root.querySelector(s), msg = t => { const m=$('#tmsg'); m.hidden=false; m.textContent=t; };
   $('#tBack').onclick = ()=>ctx.back();
   $('#tPdf').onclick = ()=>window.print();
+  $('#tExit').onclick = ()=>{ try{ sessionStorage.removeItem(TOK); }catch(e){} ctx.exit(); };
   $('#tLock').onclick = ()=>{ try{ sessionStorage.removeItem(TOK); }catch(e){} viewLogin(); };
   if($('#tPin') && window.CONFIG && window.CONFIG.TEACHER_PIN_HASH) $('#tPin').style.display = 'none';
   $('#tPin').onclick = ()=>{ try{ localStorage.removeItem(PINKEY); sessionStorage.removeItem(TOK); }catch(e){} viewSetPin(); };
