@@ -17,7 +17,10 @@ window.CONFIG = {
   GAME_STORE_KEY: 'exitMission_v2',
 
   // اختياري: رابط تطبيق ويب (Google Apps Script) لإرسال نتائج المجموعات وجلبها. اتركيه فارغًا لتعطيله.
-  SHEET_ENDPOINT: '',
+  SHEET_ENDPOINT: 'https://script.google.com/macros/s/AKfycbwlz34vSCzyLgH82gTb6jQGnoKa8IOZ-ohiqrYySGJfbFazlFAGQRx8v8mZ7t3DPbSbwA/exec',
+
+  // رمز دخول لوحة المعلمة (مخزَّن كبصمة وليس كنص). ليس حماية أمنية حقيقية لأن الموقع يعمل في المتصفح.
+  TEACHER_PIN_HASH: '2085916549',
 
   // محتوى «مراجعة الدرس السابق» — عدّلي العنوان والأسئلة لتناسب درسك السابق
   PREV_LESSON_TITLE: 'الدرس السابق: الأمان الرقمي وحماية الحسابات'

@@ -5,7 +5,7 @@ let ctx = null, root = null;
 
 function hash(s){ let h = 5381; for(let i=0;i<s.length;i++){ h = ((h<<5)+h) ^ s.charCodeAt(i); } return String(h>>>0); }
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function pinSet(){ try{ return localStorage.getItem(PINKEY); }catch(e){ return null; } }
+function pinSet(){ if(window.CONFIG && window.CONFIG.TEACHER_PIN_HASH) return window.CONFIG.TEACHER_PIN_HASH; try{ return localStorage.getItem(PINKEY); }catch(e){ return null; } }
 function unlocked(){ try{ return sessionStorage.getItem(TOK)==='1'; }catch(e){ return false; } }
 
 function render(container, c){
@@ -108,6 +108,7 @@ function viewDash(){
   $('#tBack').onclick = ()=>ctx.back();
   $('#tPdf').onclick = ()=>window.print();
   $('#tLock').onclick = ()=>{ try{ sessionStorage.removeItem(TOK); }catch(e){} viewLogin(); };
+  if($('#tPin') && window.CONFIG && window.CONFIG.TEACHER_PIN_HASH) $('#tPin').style.display = 'none';
   $('#tPin').onclick = ()=>{ try{ localStorage.removeItem(PINKEY); sessionStorage.removeItem(TOK); }catch(e){} viewSetPin(); };
   $('#tClear').onclick = ()=>{ if(confirm('سيتم حذف نتائج جميع المجموعات المحفوظة على هذا الجهاز نهائيًا. هل أنتِ متأكدة؟')){ ctx.setRecords({}); try{ localStorage.removeItem('dd2_state'); }catch(e){} viewDash(); } };
   $('#tJson').onclick = ()=>download('dd-results-'+stamp()+'.json', JSON.stringify(ctx.getRecords(), null, 2), 'application/json');
