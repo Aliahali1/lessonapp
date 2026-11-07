@@ -170,16 +170,33 @@ const head = (n, t, lead) => `<span class="chip">${n}</span><h2>${t}</h2>${lead?
 /* ---------- العروض (التبويبات) ---------- */
 const V = {};
 
-V.home = () => `<div class="hero">
-  <div class="hero-txt">
-    <span class="chip">${esc(C.subject)} · ${esc(C.grade)}</span>
-    <h1>${esc(C.siteTitle)}</h1>
-    <div class="sub">${esc(C.lessonTitle)}</div>
-    <div class="meta">المعلمة: <b>${esc(C.teacher)}</b><br>مديرة المدرسة: <b>${esc(C.principal)}</b><br>${esc(C.subject)} – ${esc(C.grade)}</div>
-    <div class="welcome">مرحبًا بكِ أيتها المحققة الرقمية! تنتظركِ اليوم مغامرة لاكتشاف المتاجر الموثوقة وكشف علامات الاحتيال. هل أنتِ مستعدة؟</div>
-    <button class="btn gold" type="button" data-act="start">ابدئي المغامرة ✨</button>
-  </div>
-  <div class="hero-img">${lumaImg('main')}</div>
+V.home = () => `<div class="home">
+  <header class="home-head">
+    <div class="home-titles">
+      <h1>${esc(C.lessonTitle)}</h1>
+      <div class="home-sub">${esc(C.siteTitle)}</div>
+    </div>
+    <ul class="home-meta" aria-label="بيانات الدرس">
+      <li><span>المادة</span><b>${esc(C.subject)}</b></li>
+      <li><span>الصف</span><b>${esc(C.grade)}</b></li>
+      <li><span>المعلمة</span><b>${esc(C.teacher)}</b></li>
+      <li><span>مديرة المدرسة</span><b>${esc(C.principal)}</b></li>
+    </ul>
+  </header>
+  <nav class="tiles" aria-label="محاور الدرس">
+    ${D.tabs.filter(t=>t.id!=='home').map(t=>`<button type="button" class="tile ${t.featured?'feat':''} ${tabDone(t.id)?'done':''}" data-act="goto" data-id="${t.id}">
+      <span class="tile-ico" aria-hidden="true">${t.ico}</span>
+      <span class="tile-title">${esc(t.label)}</span>
+      <span class="tile-desc">${esc(t.desc||'')}</span>
+      <span class="tile-open"><span>${tabDone(t.id)?'تمّ ✓':'افتحي'}</span> <i aria-hidden="true">←</i></span>
+    </button>`).join('')}
+    <div class="tile-luma">
+      <div class="tl-img">${lumaImg('welcome')}</div>
+      <div class="tl-txt"><b>مرحبًا بكِ أيتها المحققة الرقمية!</b><span>اختاري أي محور للبدء، أو ابدئي من الأهداف.</span>
+        <button class="btn gold sm" type="button" data-act="start">ابدئي المغامرة ✨</button></div>
+    </div>
+  </nav>
+  <div class="home-foot"><a href="#/teacher">🔐 دخول المعلمة</a></div>
 </div>`;
 
 V.goals = () => head('أهداف الدرس','🎯 أهداف الدرس','في نهاية هذا الدرس:') +
@@ -425,6 +442,7 @@ function go(id, sub){
 }
 function render(){
   $('#stage').innerHTML = V[S.cur]();
+  document.body.classList.toggle('is-home', S.cur==='home');
   renderTabs(); updateProgress();
   afterRender();
 }
